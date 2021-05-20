@@ -256,7 +256,8 @@ def _open_ssh_session(hostname: str) -> fabric.Connection:
 def _ensure_scripts(hostname: str, extra_slurm_header: str, working_dir: str) -> Tuple[str, fabric.Connection]:
     ssh_session = _open_ssh_session(hostname)
     retr = ssh_session.run("mktemp -d -t experiment_buddy-XXXXXXXXXX")
-    remote_tmp_folder = retr.stdout.strip() + "/"
+    remote_tmp_folder = f'{retr.stdout.strip()}/'
+    ssh_session.put(f'{SCRIPTS_PATH}/common/common.sh', remote_tmp_folder)
 
     backend = get_backend(ssh_session, working_dir)
     scripts_dir = os.path.join(SCRIPTS_PATH, backend.value)
