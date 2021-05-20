@@ -4,9 +4,9 @@
 
 set -e
 # Module system
-function log() {
-  echo -e "\e[32m"[DEPLOY LOG] $1"\e[0m"
-}
+
+. ../common.sh
+
 SCRIPT=$(realpath $0)
 log "script realpath: $SCRIPT"
 SCRIPTS_FOLDER=$(dirname $SCRIPT)
@@ -33,12 +33,12 @@ fi
 
 log "Using shared venv @ $HOME/buddy-venv"
 
-python3 -m pip install --upgrade pip
+python3 -m pip install -q --upgrade pip
 
 log "installing experiment_buddy"
-pip3 install -e git+https://github.com/ministry-of-silly-code/experiment_buddy#egg=experiment_buddy --exists-action w
+python3 -m pip install -q -e git+https://github.com/ministry-of-silly-code/experiment_buddy#egg=experiment_buddy --exists-action w
 
-python3 -m pip install --no-cache-dir -r "requirements.txt" --exists-action w
+python3 -m pip install -q --no-cache-dir -r "requirements.txt" --exists-action w
 
 log "python3 $2"
 export BUDDY_IS_DEPLOYED=1

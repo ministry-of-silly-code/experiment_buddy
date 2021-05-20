@@ -4,9 +4,9 @@
 
 set -e
 # Module system
-function log() {
-  echo -e "\e[32m"[DEPLOY LOG] $1"\e[0m"
-}
+
+. ../common.sh
+
 SCRIPT=$(realpath $0)
 log "script realpath: $SCRIPT"
 SCRIPTS_FOLDER=$(dirname $SCRIPT)

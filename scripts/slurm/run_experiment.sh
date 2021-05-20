@@ -1,10 +1,7 @@
 #! /bin/bash
 set -e
 
-# Module system
-function log() {
-  echo -e "\e[32m"[DEPLOY LOG] $1"\e[0m"
-}
+. ../common.sh
 
 source /etc/profile
 log "Refreshing modules..."
@@ -37,10 +34,10 @@ fi
 
 log "Using shared venv @ $HOME/venv"
 
-python3 -m pip install --upgrade pip
+python3 -m pip install -q --upgrade pip
 
 # sed -i '/torch.*/d' ./requirements.txt
-python3 -m pip install -r "requirements.txt" --exists-action w -f https://download.pytorch.org/whl/torch_stable.html
+python3 -m pip install -q -r "requirements.txt" --exists-action w -f https://download.pytorch.org/whl/torch_stable.html
 
 export XLA_FLAGS=--xla_gpu_cuda_data_dir=/cvmfs/ai.mila.quebec/apps/x86_64/common/cuda/10.1/
 
