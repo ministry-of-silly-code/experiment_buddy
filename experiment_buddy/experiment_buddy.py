@@ -223,7 +223,7 @@ def _ask_experiment_id(cluster, sweep):
         experiment_id = tkinter.simpledialog.askstring(title, "experiment_id")
         root.destroy()
     except:
-        experiment_id = input(f"Running on {title} \ndescribe your experiment (experiment_id):\n")
+        experiment_id = input(f"Running on {title}\ndescribe your experiment (experiment_id):\n")
 
     experiment_id = (experiment_id or "no_id").replace(" ", "_")
     if cluster:
