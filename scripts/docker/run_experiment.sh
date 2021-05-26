@@ -2,7 +2,7 @@
 
 set -e
 
-. $(dirname "$0")/../common.sh
+. $(dirname "$0")/common.sh
 
 GIT_URL=$1
 ENTRYPOINT=$2
