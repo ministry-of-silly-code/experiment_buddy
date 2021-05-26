@@ -80,3 +80,12 @@ docker run -v ~/.ssh:/root/.ssh --rm -ti \
            -e ON_CLUSTER=1 \
            -u root:$(id -u $USER) $(docker build -f ./Dockerfile-flow -q .)
 ```
+
+#### Remote watcher
+```shell
+#To allow the docker to communicate with the cluster you may need to change your ~/.ssh/config permissions 
+sudo chown root:$USER ~/.ssh/config && sudo chmod 640 ~/.ssh/config
+
+#The first runs is quite slow, give it a few minutes 
+nodemon --exec "./test_scripts/watcher.sh" -e py,sh
+```

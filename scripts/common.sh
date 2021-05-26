@@ -12,7 +12,7 @@ function pull_experiment() {
   HASH_COMMIT=$2
   FOLDER=$3
   log "downloading source code from $GIT_URL to $FOLDER"
-  git clone "$GIT_URL" "$FOLDER"/
+  git clone -q "$GIT_URL" "$FOLDER"/
   cd "$FOLDER" || exit
   git checkout "$HASH_COMMIT"
   log "pwd is now $(pwd)"
@@ -35,17 +35,14 @@ function load_git_folder() {
   pull_experiment $GIT_URL $HASH_COMMIT $EXPERIMENT_FOLDER
 }
 
-set_up_venv() {
+function set_up_venv() {
   VENV_NAME=$1
-  if ! source $HOME/"$VENV_NAME"/bin/activate; then
-    log "Setting up venv @ $HOME/$VENV_NAME..."
-    python3 -m virtualenv "$HOME"/"$VENV_NAME"
-    source "$HOME"/"$VENV_NAME"/bin/activate
-  fi
 
-  log "Using shared venv @ $HOME/$VENV_NAME"
+  [ ! -d /tmp/"$VENV_NAME" ] && python3 -m virtualenv /tmp/"$VENV_NAME" > /dev/null
 
-  python3 -m pip -q  install --upgrade pip
+  source /tmp/"$VENV_NAME"/bin/activate > /dev/null
 
-  python3 -m pip -q install -r "requirements.txt" --exists-action w -f https://download.pytorch.org/whl/torch_stable.html
+  python3 -m pip -q install --upgrade pip
+
+  python3 -m pip -q install -r "requirements.txt" --exists-action w
 }
