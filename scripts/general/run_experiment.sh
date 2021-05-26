@@ -4,7 +4,7 @@
 
 set -e
 
-. $(dirname "$0")/../common.sh
+. $(dirname "$0")/common.sh
 
 load_git_folder "$GIT_URL" "$HASH_COMMIT"
 
