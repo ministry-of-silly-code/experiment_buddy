@@ -223,9 +223,9 @@ def _ask_experiment_id(cluster, sweep):
         experiment_id = tkinter.simpledialog.askstring(title, "experiment_id")
         root.destroy()
     except:
-        if os.environ['TEST_BRANCH_NAME']:
+        if os.environ['BUDDY_CURRENT_TESTING_BRANCH']:
             import uuid
-            experiment_id = f'BRANCH_TESTING-{os.environ["TEST_BRANCH_NAME"]}-{uuid.uuid4()}'
+            experiment_id = f'TESTING_BRANCH-{os.environ["BUDDY_CURRENT_TESTING_BRANCH"]}-{uuid.uuid4()}'
         else:
             experiment_id = input(f"Running on {title}\ndescribe your experiment (experiment_id):\n")
 
@@ -260,7 +260,7 @@ def _open_ssh_session(hostname: str) -> fabric.Connection:
 def _ensure_scripts(hostname: str, extra_slurm_header: str, working_dir: str) -> Tuple[str, fabric.Connection]:
     ssh_session = _open_ssh_session(hostname)
     retr = ssh_session.run("mktemp -d -t experiment_buddy-XXXXXXXXXX")
-    remote_tmp_folder = f'{retr.stdout.strip()}/'
+    remote_tmp_folder = retr.stdout.strip() + "/"
     ssh_session.put(f'{SCRIPTS_PATH}/common/common.sh', remote_tmp_folder)
 
     backend = get_backend(ssh_session, working_dir)

@@ -44,5 +44,7 @@ function set_up_venv() {
 
   python3 -m pip -q install --upgrade pip
 
+  python3 -m pip install -q -e git+https://github.com/ministry-of-silly-code/experiment_buddy#egg=experiment_buddy --exists-action w
+
   python3 -m pip -q install -r "requirements.txt" --exists-action w
 }
