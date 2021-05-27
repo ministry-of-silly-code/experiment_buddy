@@ -1,12 +1,10 @@
 import argparse
-import concurrent.futures
 import datetime
 import os
 import subprocess
 import sys
 import time
 import types
-from typing import Tuple
 
 import cloudpickle
 import fabric
@@ -257,41 +255,38 @@ def _open_ssh_session(hostname: str) -> fabric.Connection:
     return ssh_session
 
 
-def _ensure_scripts(hostname: str, extra_slurm_header: str, working_dir: str) -> Tuple[str, fabric.Connection]:
-    ssh_session = _open_ssh_session(hostname)
+def _ensure_scripts_directory(ssh_session: fabric.Connection, extra_slurm_header: str, working_dir: str) -> str:
     retr = ssh_session.run("mktemp -d -t experiment_buddy-XXXXXXXXXX")
     remote_tmp_folder = retr.stdout.strip() + "/"
     ssh_session.put(f'{SCRIPTS_PATH}/common/common.sh', remote_tmp_folder)
 
-    backend = get_backend(ssh_session, working_dir)
-    scripts_dir = os.path.join(SCRIPTS_PATH, backend.value)
-    for file_path in os.listdir(scripts_dir):
-        script_path = os.path.join(scripts_dir, file_path)
-        if extra_slurm_header and file_path in ("run_sweep.sh", "srun_python.sh"):
-            with open(script_path) as fin:
-                rows = fin.readlines()
+    scripts_dir = os.path.join(SCRIPTS_PATH, get_backend(ssh_session, working_dir).value)
 
-            script_path = "/tmp/" + file_path
-            with open(script_path, "w") as fout:
-                for flag_idx in range(1, len(rows)):
-                    old = rows[flag_idx - 1].strip()
-                    new = rows[flag_idx].strip()
-                    if old[:7] in ("#SBATCH", "") and new[:7] not in ("#SBATCH", ""):
-                        rows.insert(flag_idx, "\n" + extra_slurm_header + "\n")
-                        break
-                fout.write("".join(rows))
-        ssh_session.put(script_path, remote_tmp_folder)
+    for file in os.listdir(scripts_dir):
+        if extra_slurm_header and file in ("run_sweep.sh", "srun_python.sh"):
+            new_tmp_file = _insert_extra_header(extra_slurm_header, os.path.join(scripts_dir, file))
+            ssh_session.put(new_tmp_file, remote_tmp_folder)
+        else:
+            ssh_session.put(os.path.join(scripts_dir, file), remote_tmp_folder)
 
-    _check_or_copy_wandb_key(hostname, ssh_session)
-
-    return remote_tmp_folder, ssh_session
+    return remote_tmp_folder
 
 
-def _check_or_copy_wandb_key(hostname: str, ssh_session: fabric.Connection):
+def _insert_extra_header(extra_slurm_header, script_path):
+    tmp_script_path = f"/tmp/{os.path.basename(script_path)}"
+    with open(script_path) as f_in, open(tmp_script_path, "w") as f_out:
+        rows = f_in.readlines()
+        first_free_idx = 1 + next(i for i in reversed(range(len(rows))) if "#SBATCH" in rows[i])
+        rows.insert(first_free_idx, f"\n{extra_slurm_header}\n")
+        f_out.write("\n".join(rows))
+    return tmp_script_path
+
+
+def _check_or_copy_wandb_key(ssh_session: fabric.Connection):
     try:
         ssh_session.run("test -f $HOME/.netrc")
     except UnexpectedExit:
-        print(f"Wandb api key not found in {hostname}. Copying it from {DEFAULT_WANDB_KEY}")
+        print(f"Wandb api key not found in {ssh_session.host}. Copying it from {DEFAULT_WANDB_KEY}")
         ssh_session.put(DEFAULT_WANDB_KEY, ".netrc")
 
 
@@ -305,47 +300,47 @@ def log_cmd(cmd, retr):
 
 def _commit_and_sendjob(hostname: str, experiment_id: str, sweep_yaml: str, git_repo: git.Repo, project_name: str,
                         proc_num: int, extra_slurm_header: str, wandb_kwargs: dict):
+    ssh_session = _open_ssh_session(hostname)
+    scripts_folder = _ensure_scripts_directory(ssh_session, extra_slurm_header, git_repo.working_dir)
+    hash_commit = git_sync(experiment_id, git_repo)
+
+    _check_or_copy_wandb_key(ssh_session)
+
     git_url = git_repo.remotes[0].url
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        scripts_folder = executor.submit(_ensure_scripts, hostname, extra_slurm_header, git_repo.working_dir)
-        hash_commit = git_sync(experiment_id, git_repo)
+    entrypoint = os.path.relpath(sys.argv[0], git_repo.working_dir)
+    if sweep_yaml:
+        sweep_id = _load_sweep(entrypoint, experiment_id, project_name, sweep_yaml, wandb_kwargs)
+        ssh_command = f"/opt/slurm/bin/sbatch {scripts_folder}/run_sweep.sh {git_url} {sweep_id} {hash_commit}"
+    else:
+        ssh_command = f"bash -l {scripts_folder}/run_experiment.sh {git_url} {entrypoint} {hash_commit}"
+        print("monitor your run on https://wandb.ai/")
 
-        entrypoint = os.path.relpath(sys.argv[0], git_repo.working_dir)
-        if sweep_yaml:
-            with open(sweep_yaml, 'r') as stream:
-                data_loaded = yaml.safe_load(stream)
-
-            if data_loaded["program"] != entrypoint:
-                raise ValueError(f'YAML {data_loaded["program"]} does not match the entrypoint {entrypoint}')
-
-            entity = []
-            if "entity" in wandb_kwargs:
-                entity = ["--entity", wandb_kwargs["entity"]]
-
-            args = ["wandb", "sweep", "--name", '"' + experiment_id + '"', "--project", project_name, *entity, sweep_yaml]
-
-            try:
-                wandb_stdout = subprocess.check_output(args, stderr=subprocess.STDOUT).decode("utf-8")
-            except subprocess.CalledProcessError as e:
-                print(e.output.decode("utf-8"))
-                raise e
-            row, = [row for row in wandb_stdout.split("\n") if "Run sweep agent with:" in row]
-            print([row for row in wandb_stdout.split("\n") if "View" in row][0])
-            sweep_id = row.split()[-1].strip()
-
-            ssh_args = (git_url, sweep_id, hash_commit)
-            ssh_command = "/opt/slurm/bin/sbatch {0}/run_sweep.sh {1} {2} {3}"
-        else:
-            ssh_args = (git_url, entrypoint, hash_commit)
-            ssh_command = "bash -l {0}run_experiment.sh {1} {2} {3}"
-            print("monitor your run on https://wandb.ai/")
-
-    scripts_folder, ssh_session = scripts_folder.result()
-    ssh_command = ssh_command.format(scripts_folder, *ssh_args)
     print(ssh_command)
     for _ in tqdm.trange(proc_num):
         time.sleep(1)
         ssh_session.run(ssh_command)
+
+
+def _load_sweep(entrypoint, experiment_id, project, sweep_yaml, wandb_kwargs):
+    with open(sweep_yaml, 'r') as stream:
+        data_loaded = yaml.safe_load(stream)
+
+    if data_loaded["program"] != entrypoint:
+        raise ValueError(f'YAML {data_loaded["program"]} does not match the entrypoint {entrypoint}')
+
+    wandb_stdout = subprocess.check_output([
+        "wandb", "sweep",
+        "--name", f'"{experiment_id}"',
+        "--project", project,
+        *(["--entity", wandb_kwargs["entity"]] if "entity" in wandb_kwargs else []),
+        sweep_yaml
+    ], stderr=subprocess.STDOUT).decode("utf-8").split("\n")
+
+    row = next(row for row in wandb_stdout if "Run sweep agent with:" in row)
+    print(next(row for row in wandb_stdout if "View" in row))
+
+    sweep_id = row.split()[-1].strip()
+    return sweep_id
 
 
 def git_sync(experiment_id, git_repo):
