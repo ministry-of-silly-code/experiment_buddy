@@ -8,7 +8,10 @@ git config --global user.email "$GIT_MAIL"
 git config --global user.name "$GIT_NAME"
 
 # Setup phase - Also remember to set your $WANDB_API_KEY (More info in the readme)
-[[ -z "$WANDB_API_KEY" ]] && (echo set \"export WANDB_API_KEY=[your-wandb-key]\" which can be found here: https://wandb.ai/settings; exit;)
+if [[ -z "$WANDB_API_KEY" ]]; then
+  echo set \"export WANDB_API_KEY=[your-wandb-key]\" which can be found here: https://wandb.ai/settings
+  exit
+fi
 
 # 1 - Create a new virtual env
 virtualenv -q buddy-env  > /dev/null && source ./buddy-env/bin/activate > /dev/null
