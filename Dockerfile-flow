@@ -4,8 +4,10 @@ RUN apt-get update
 RUN apt-get install git -y
 RUN pip install virtualenv
 
+ENV VIRTUAL_ENV=/buddy-env/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Just to speed up the flow testing
-RUN virtualenv buddy-env
-RUN . ./buddy-env/bin/activate \
- && pip install GitPython tensorboardX matplotlib wandb fabric cloudpickle PyYaml paramiko tqdm jax jaxlib
+RUN pip install wheel GitPython tensorboardX matplotlib wandb fabric cloudpickle PyYaml paramiko tqdm jax jaxlib
 
