@@ -20,6 +20,7 @@ from invoke import UnexpectedExit
 from paramiko.ssh_exception import SSHException
 
 import experiment_buddy.utils
+from experiment_buddy import MaMan
 from experiment_buddy.utils import get_backend
 from experiment_buddy.utils import get_project_name
 
@@ -33,7 +34,6 @@ else:
 logging.basicConfig(level=logging.INFO)
 
 wandb_escape = "^"
-hyperparams = None
 tb = tensorboard = None
 if os.path.exists("buddy_scripts/"):
     SCRIPTS_PATH = "buddy_scripts/"
@@ -41,30 +41,6 @@ else:
     SCRIPTS_PATH = os.path.join(os.path.dirname(__file__), "../scripts/")
 ARTIFACTS_PATH = "runs/"
 DEFAULT_WANDB_KEY = os.path.join(os.environ["HOME"], ".netrc")
-
-
-def register(config_params):
-    global hyperparams
-    # TODO: fails on nested config object
-    if hyperparams is not None:
-        raise RuntimeError("refusing to overwrite registered parameters")
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('_ignored', nargs='*')
-
-    for k, v in config_params.items():
-        if k.startswith(wandb_escape):
-            raise NameError(f"{wandb_escape} is a reserved prefix")
-        if _is_valid_hyperparam(k, v):
-            parser.add_argument(f"--{k}", f"--^{k}", type=type(v), default=v)
-
-    parsed = parser.parse_args()
-
-    for k, v in vars(parsed).items():
-        k = k.lstrip(wandb_escape)
-        config_params[k] = v
-
-    hyperparams = config_params.copy()
 
 
 def _is_valid_hyperparam(key, value):
@@ -78,7 +54,7 @@ def _is_valid_hyperparam(key, value):
 
 
 class WandbWrapper:
-    def __init__(self, experiment_id, debug, wandb_kwargs, local_tensorboard=None):
+    def __init__(self, hyperparams, experiment_id, debug, wandb_kwargs, local_tensorboard=None):
         """
         project_name is the git root folder name
         """
@@ -161,7 +137,7 @@ class WandbWrapper:
 
 
 @experiment_buddy.utils.telemetry
-def deploy(host: str = "", sweep_yaml: str = "", proc_num: int = 1, wandb_kwargs=None, extra_slurm_headers="") -> WandbWrapper:
+def deploy(ma_man: MaMan, host: str = "", sweep_yaml: str = "", proc_num: int = 1, wandb_kwargs=None, extra_slurm_headers="") -> WandbWrapper:
     if wandb_kwargs is None:
         wandb_kwargs = {}
 
@@ -188,19 +164,19 @@ def deploy(host: str = "", sweep_yaml: str = "", proc_num: int = 1, wandb_kwargs
         jid = datetime.datetime.now().strftime("%b%d_%H-%M-%S")
         jid += os.environ.get("SLURM_JOB_ID", "")
         # TODO: turn into a big switch based on scheduler
-        return WandbWrapper(f"{experiment_id}_{jid}", **common_kwargs)
+        return WandbWrapper(ma_man.hyperparams, f"{experiment_id}_{jid}", **common_kwargs)
 
     dtm = datetime.datetime.now().strftime("%b%d_%H-%M-%S")
     if debug:
         experiment_id = "DEBUG_RUN"
         tb_dir = os.path.join(git_repo.working_dir, ARTIFACTS_PATH, "tensorboard/", experiment_id, dtm)
-        return WandbWrapper(f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
+        return WandbWrapper(ma_man.hyperparams, f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
 
     experiment_id = _ask_experiment_id(host, sweep_yaml)
     print(f"experiment_id: {experiment_id}")
     if local_run:
         tb_dir = os.path.join(git_repo.working_dir, ARTIFACTS_PATH, "tensorboard/", experiment_id, dtm)
-        return WandbWrapper(f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
+        return WandbWrapper(ma_man.hyperparams, f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
     else:
         if experiment_id.endswith("!!"):
             extra_slurm_headers += "\n#SBATCH --partition=unkillable"
