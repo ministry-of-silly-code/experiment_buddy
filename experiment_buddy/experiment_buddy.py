@@ -154,8 +154,8 @@ class MaMan:
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             f = inspect.currentframe().f_back
-            self.ma_man.hyperparams = {name: val for name, val in f.f_locals.items() if name not in self.old_vars}
-            self.ma_man.register({name: val for name, val in f.f_locals.items() if name not in self.old_vars})
+            current_vars = {name: val for name, val in f.f_locals.items() if name not in self.old_vars}
+            self.ma_man.register(current_vars)
 
     def parameters_block(self):
         return MaMan.__ParamContext(self)
