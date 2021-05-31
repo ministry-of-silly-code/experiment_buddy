@@ -1,10 +1,13 @@
-import datetime
+import argparse
 import logging
 import os
 import subprocess
 import sys
 import time
 import types
+import datetime
+import inspect
+from typing import Dict
 
 import cloudpickle
 import fabric
@@ -135,55 +138,95 @@ class WandbWrapper:
         self.run.watch(*args, **kwargs)
 
 
-@experiment_buddy.utils.telemetry
-def deploy(ma_man: MaMan, host: str = "", sweep_yaml: str = "", proc_num: int = 1, wandb_kwargs=None, extra_slurm_headers="") -> WandbWrapper:
-    if wandb_kwargs is None:
-        wandb_kwargs = {}
+class MaMan:
+    def __init__(self):
+        self.hyperparams = {}
 
-    debug = '_pydev_bundle.pydev_log' in sys.modules.keys() and not os.environ.get('BUDDY_DEBUG_DEPLOYMENT', False)
-    is_running_remotely = "SLURM_JOB_ID" in os.environ.keys() or "BUDDY_IS_DEPLOYED" in os.environ.keys()
-    local_run = not host
+    class __ParamContext:
+        def __init__(self, ma_man):
+            self.ma_man = ma_man
 
-    try:
-        git_repo = git.Repo(search_parent_directories=True)
-    except git.InvalidGitRepositoryError:
-        raise ValueError(f"Could not find a git repo")
+        def __enter__(self):
+            f = inspect.currentframe().f_back
+            self.old_vars = set(f.f_locals.keys())
+            return self
 
-    project_name = get_project_name(git_repo)
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            f = inspect.currentframe().f_back
+            self.ma_man.hyperparams = {name: val
+                                       for name, val in f.f_locals.items()
+                                       if name not in self.old_vars}
 
-    if local_run and sweep_yaml:
-        raise NotImplemented("Local sweeps are not supported")
+    def parameters_block(self):
+        return MaMan.__ParamContext(self)
 
-    wandb_kwargs = {'project': project_name, **wandb_kwargs}
-    common_kwargs = {'debug': debug, 'wandb_kwargs': wandb_kwargs, }
+    def register(self, config_params: Dict[str, str]):
+        # TODO: fails on nested config object
+        if any(k.startswith(wandb_escape) for k in config_params.keys()):
+            raise NameError(f"{wandb_escape} is a reserved prefix")
 
-    if is_running_remotely:
-        print("using wandb")
-        experiment_id = f"{git_repo.head.commit.message.strip()}"
-        jid = datetime.datetime.now().strftime("%b%d_%H-%M-%S")
-        jid += os.environ.get("SLURM_JOB_ID", "")
-        # TODO: turn into a big switch based on scheduler
-        return WandbWrapper(ma_man.hyperparams, f"{experiment_id}_{jid}", **common_kwargs)
+        parser = argparse.ArgumentParser()
+        parser.add_argument('_ignored', nargs='*')
 
-    dtm = datetime.datetime.now().strftime("%b%d_%H-%M-%S")
-    if debug:
-        experiment_id = "DEBUG_RUN"
-        tb_dir = os.path.join(git_repo.working_dir, ARTIFACTS_PATH, "tensorboard/", experiment_id, dtm)
-        return WandbWrapper(ma_man.hyperparams, f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
+        for k, v in config_params.items():
+            if _is_valid_hyperparam(k, v):
+                parser.add_argument(f"--{k}", f"--^{k}", type=type(v), default=v)
 
-    experiment_id = _ask_experiment_id(host, sweep_yaml)
-    print(f"experiment_id: {experiment_id}")
-    if local_run:
-        tb_dir = os.path.join(git_repo.working_dir, ARTIFACTS_PATH, "tensorboard/", experiment_id, dtm)
-        return WandbWrapper(ma_man.hyperparams, f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
-    else:
-        if experiment_id.endswith("!!"):
-            extra_slurm_headers += "\n#SBATCH --partition=unkillable"
-        elif experiment_id.endswith("!"):
-            extra_slurm_headers += "\n#SBATCH --partition=main"
+        parsed = parser.parse_args()
 
-        _commit_and_sendjob(host, experiment_id, sweep_yaml, git_repo, project_name, proc_num, extra_slurm_headers, wandb_kwargs)
-        sys.exit()
+        cli_param_overrides = {k.lstrip(wandb_escape): v for k, v in vars(parsed).items()}
+
+        self.hyperparams = {**config_params, **cli_param_overrides}
+
+    @experiment_buddy.utils.telemetry
+    def deploy(self, host: str = "", sweep_yaml: str = "", proc_num: int = 1, wandb_kwargs=None, extra_slurm_headers="") -> WandbWrapper:
+        if wandb_kwargs is None:
+            wandb_kwargs = {}
+
+        debug = '_pydev_bundle.pydev_log' in sys.modules.keys() and not os.environ.get('BUDDY_DEBUG_DEPLOYMENT', False)
+        is_running_remotely = "SLURM_JOB_ID" in os.environ.keys() or "BUDDY_IS_DEPLOYED" in os.environ.keys()
+        local_run = not host
+
+        try:
+            git_repo = git.Repo(search_parent_directories=True)
+        except git.InvalidGitRepositoryError:
+            raise ValueError(f"Could not find a git repo")
+
+        project_name = get_project_name(git_repo)
+
+        if local_run and sweep_yaml:
+            raise NotImplemented("Local sweeps are not supported")
+
+        wandb_kwargs = {'project': project_name, **wandb_kwargs}
+        common_kwargs = {'debug': debug, 'wandb_kwargs': wandb_kwargs, }
+
+        if is_running_remotely:
+            print("using wandb")
+            experiment_id = f"{git_repo.head.commit.message.strip()}"
+            jid = datetime.datetime.now().strftime("%b%d_%H-%M-%S")
+            jid += os.environ.get("SLURM_JOB_ID", "")
+            # TODO: turn into a big switch based on scheduler
+            return WandbWrapper(self.hyperparams, f"{experiment_id}_{jid}", **common_kwargs)
+
+        dtm = datetime.datetime.now().strftime("%b%d_%H-%M-%S")
+        if debug:
+            experiment_id = "DEBUG_RUN"
+            tb_dir = os.path.join(git_repo.working_dir, ARTIFACTS_PATH, "tensorboard/", experiment_id, dtm)
+            return WandbWrapper(self.hyperparams, f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
+
+        experiment_id = _ask_experiment_id(host, sweep_yaml)
+        print(f"experiment_id: {experiment_id}")
+        if local_run:
+            tb_dir = os.path.join(git_repo.working_dir, ARTIFACTS_PATH, "tensorboard/", experiment_id, dtm)
+            return WandbWrapper(self.hyperparams, f"{experiment_id}_{dtm}", local_tensorboard=_setup_tb(logdir=tb_dir), **common_kwargs)
+        else:
+            if experiment_id.endswith("!!"):
+                extra_slurm_headers += "\n#SBATCH --partition=unkillable"
+            elif experiment_id.endswith("!"):
+                extra_slurm_headers += "\n#SBATCH --partition=main"
+
+            _commit_and_sendjob(host, experiment_id, sweep_yaml, git_repo, project_name, proc_num, extra_slurm_headers, wandb_kwargs)
+            sys.exit()
 
 
 def _ask_experiment_id(cluster, sweep):
