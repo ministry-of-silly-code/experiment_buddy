@@ -71,6 +71,9 @@ class WandbWrapper:
         self.objects_path = os.path.join(ARTIFACTS_PATH, "objects/", self.run.name)
         os.makedirs(self.objects_path, exist_ok=True)
 
+        def unroll():
+            ...
+
         def register_param(name, value, prefix=""):
             if not _is_valid_hyperparam(name, value):
                 return
@@ -83,15 +86,13 @@ class WandbWrapper:
             else:
                 name = prefix + wandb_escape + name
                 # if the parameter was not set by a sweep
-                if not name in wandb.config._items:
+                if name not in wandb.config._items:
                     print(f"setting {name}={str(value)}")
                     setattr(wandb.config, name, str(value))
                 else:
-                    print(
-                        f"not setting {name} to {str(value)}, "
-                        f"str because its already {getattr(wandb.config, name)}, "
-                        f"{type(getattr(wandb.config, name))}"
-                    )
+                    print(f"not setting {name} to {str(value)}, "
+                          f"str because its already {getattr(wandb.config, name)}, "
+                          f"{type(getattr(wandb.config, name))}")
 
         for k, v in hyperparams.items():
             register_param(k, v)
@@ -153,9 +154,8 @@ class MaMan:
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             f = inspect.currentframe().f_back
-            self.ma_man.hyperparams = {name: val
-                                       for name, val in f.f_locals.items()
-                                       if name not in self.old_vars}
+            self.ma_man.hyperparams = {name: val for name, val in f.f_locals.items() if name not in self.old_vars}
+            self.ma_man.register({name: val for name, val in f.f_locals.items() if name not in self.old_vars})
 
     def parameters_block(self):
         return MaMan.__ParamContext(self)
@@ -172,11 +172,7 @@ class MaMan:
             if _is_valid_hyperparam(k, v):
                 parser.add_argument(f"--{k}", f"--^{k}", type=type(v), default=v)
 
-        parsed = parser.parse_args()
-
-        cli_param_overrides = {k.lstrip(wandb_escape): v for k, v in vars(parsed).items()}
-
-        self.hyperparams = {**config_params, **cli_param_overrides}
+        self.hyperparams = {k.lstrip(wandb_escape): v for k, v in vars(parser.parse_args()).items()}
 
     @experiment_buddy.utils.telemetry
     def deploy(self, host: str = "", sweep_yaml: str = "", proc_num: int = 1, wandb_kwargs=None, extra_slurm_headers="") -> WandbWrapper:
