@@ -335,13 +335,13 @@ def _load_sweep(entrypoint, experiment_id, project, sweep_yaml, wandb_kwargs):
     try:
         wandb_stdout = subprocess.check_output([
             "wandb", "sweep",
-            "--name", f'"{experiment_id}"',
+            "--name", "experiment",
             "--project", project,
             *(["--entity", wandb_kwargs["entity"]] if "entity" in wandb_kwargs else []),
             sweep_yaml
         ], stderr=subprocess.STDOUT).decode("utf-8").split("\n")
     except Exception as e:
-        print(e)
+        print(e.output)
         raise e
 
     row = next(row for row in wandb_stdout if "Run sweep agent with:" in row)
