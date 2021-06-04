@@ -332,13 +332,17 @@ def _load_sweep(entrypoint, experiment_id, project, sweep_yaml, wandb_kwargs):
     if data_loaded["program"] != entrypoint:
         raise ValueError(f'YAML {data_loaded["program"]} does not match the entrypoint {entrypoint}')
 
-    wandb_stdout = subprocess.check_output([
-        "wandb", "sweep",
-        "--name", f'"{experiment_id}"',
-        "--project", project,
-        *(["--entity", wandb_kwargs["entity"]] if "entity" in wandb_kwargs else []),
-        sweep_yaml
-    ], stderr=subprocess.STDOUT).decode("utf-8").split("\n")
+    try:
+        wandb_stdout = subprocess.check_output([
+            "wandb", "sweep",
+            "--name", f'"{experiment_id}"',
+            "--project", project,
+            *(["--entity", wandb_kwargs["entity"]] if "entity" in wandb_kwargs else []),
+            sweep_yaml
+        ], stderr=subprocess.STDOUT).decode("utf-8").split("\n")
+    except Exception as e:
+        print(e)
+        raise e
 
     row = next(row for row in wandb_stdout if "Run sweep agent with:" in row)
     print(next(row for row in wandb_stdout if "View" in row))
