@@ -1,0 +1,24 @@
+name: Buddy e2e Testing
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [feature/ci-testing]
+
+jobs:
+  test_pull_request:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+      - run: npm i -g nodemon meta 
+      - run: meta git clone git@github.com:ministry-of-silly-code/buddy_metarepo.git
+      - run: cd buddy_metarepo
+      - run: virtualenv buddy_env
+      - run: source ./buddy_env/bin/activate
+      - run: ./test_scripts/watcher.sh local
