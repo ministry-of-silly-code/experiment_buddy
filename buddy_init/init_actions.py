@@ -85,8 +85,7 @@ Did you:
 """)
 
 
-def setup_wandb(project_name: str, wand_db_key: str):
+def setup_wandb(project_name: str):
     """Initialize the wandb project in the current directory"""
-    os.environ['WANDB_API_KEY'] = wand_db_key
     subprocess.check_output(f'venv/bin/python3 -m pip install wandb', shell=True)
     subprocess.check_output(f'venv/bin/python3 -m wandb init -p {project_name}', shell=True)

@@ -28,7 +28,7 @@ def init(args=None):
         os.mkdir("src")
 
         prompt_with_args(setup_mila_user)
-        prompt_with_args(partial(setup_wandb, project_name=base_dir))
+        setup_wandb(project_name=base_dir)
 
         prompt_with_args(create_git_repo, force=parsed['yes'])
         has_local_venv = prompt_with_args(create_venv, force=parsed['yes'])
