@@ -12,8 +12,17 @@ from git import Repo
 from .init_framework import FatalException
 
 
-def is_venv():
+def _is_venv():
     return bool(os.environ.get('VIRTUAL_ENV'))
+
+
+def _call_python(command: str, use_local_venv=True):
+    if use_local_venv:
+        subprocess.check_output(f'venv/bin/python3 -m {command}', shell=True)
+    elif _is_venv():
+        subprocess.check_output(f'python3 -m {command}', shell=True)
+    else:
+        raise FatalException('Installing packages on the system python is not allowed. Aborting')
 
 
 def create_venv():
@@ -33,12 +42,7 @@ def create_base_structure(use_local_venv=True):
     """initializes the base example"""
     base_skeleton_path = f'{os.path.dirname(os.path.realpath(__file__))}/base_skeleton'
     dir_util.copy_tree(base_skeleton_path, '.')
-    if use_local_venv:
-        subprocess.check_output(f'venv/bin/python3 -m pip install -r requirements.txt', shell=True)
-    elif is_venv():
-        subprocess.check_output(f'python3 -m pip install -r requirements.txt', shell=True)
-    else:
-        raise FatalException('Installing packages on the system python is not allowed. Aborting')
+    _call_python(command='pip install -r requirements.txt', use_local_venv=use_local_venv)
 
 
 def setup_mila_user(mila_user: str):
@@ -85,7 +89,7 @@ Did you:
 """)
 
 
-def setup_wandb(project_name: str):
+def setup_wandb(project_name: str, use_local_venv=True):
     """Initialize the wandb project in the current directory"""
-    subprocess.check_output(f'venv/bin/python3 -m pip install wandb', shell=True)
-    subprocess.check_output(f'venv/bin/python3 -m wandb init -p {project_name}', shell=True)
+    _call_python(use_local_venv=use_local_venv, command=f'pip install wandb')
+    _call_python(use_local_venv=use_local_venv, command=f'wandb init -p {project_name}')

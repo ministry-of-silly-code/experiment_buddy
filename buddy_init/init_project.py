@@ -28,10 +28,10 @@ def init(args=None):
         os.mkdir("src")
 
         prompt_with_args(setup_mila_user)
-        setup_wandb(project_name=base_dir)
 
         prompt_with_args(create_git_repo, force=parsed['yes'])
         has_local_venv = prompt_with_args(create_venv, force=parsed['yes'])
+        setup_wandb(project_name=base_dir, use_local_venv=has_local_venv)
         prompt_with_args(partial(create_base_structure, use_local_venv=has_local_venv), force=parsed['yes'])
 
 
