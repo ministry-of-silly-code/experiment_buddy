@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 import types
+from distutils.util import strtobool
 
 import cloudpickle
 import fabric
@@ -50,11 +51,15 @@ def register(config_params):
     parser = argparse.ArgumentParser()
     parser.add_argument('_ignored', nargs='*')
 
+    if any(k.startswith(wandb_escape) for k in config_params.keys()):
+        raise NameError(f"{wandb_escape} is a reserved prefix")
+
     for k, v in config_params.items():
-        if k.startswith(wandb_escape):
-            raise NameError(f"{wandb_escape} is a reserved prefix")
         if _is_valid_hyperparam(k, v):
-            parser.add_argument(f"--{k}", f"--^{k}", type=type(v), default=v)
+            if v is bool:
+                parser.add_argument(f"--{k}", f"--^{k}", default=v, type=lambda x: bool(strtobool(x)), choices=[True, False])
+            else:
+                parser.add_argument(f"--{k}", f"--^{k}", type=type(v), default=v)
 
     parsed = parser.parse_args()
 
