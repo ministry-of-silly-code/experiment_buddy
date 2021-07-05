@@ -7,6 +7,7 @@ import sys
 import time
 import types
 from distutils.util import strtobool
+from functools import partial
 
 import cloudpickle
 import fabric
@@ -56,10 +57,11 @@ def register(config_params):
 
     for k, v in config_params.items():
         if _is_valid_hyperparam(k, v):
-            if v is bool:
-                parser.add_argument(f"--{k}", f"--^{k}", default=v, type=lambda x: bool(strtobool(x)), choices=[True, False])
+            new_arg = partial(parser.add_argument, f"--{k}", f"--^{k}", default=v)
+            if isinstance(v, bool):
+                new_arg(type=lambda x: bool(strtobool(x)), choices=[True, False])
             else:
-                parser.add_argument(f"--{k}", f"--^{k}", type=type(v), default=v)
+                new_arg(type=type(v))
 
     parsed = parser.parse_args()
 
