@@ -31,7 +31,6 @@ Example: (Updated)
 ### From repo
 ```shell
 git clone git@github.com:ministry-of-silly-code/buddy_cli.git
-cd buddy_cli
 pip install -e ./buddy-cli
 ```
 
