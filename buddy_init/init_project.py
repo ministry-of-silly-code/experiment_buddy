@@ -8,15 +8,15 @@ from .init_framework import WorkingDirectory, prompt, add_action_toggle
 
 def init(args=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dest", help="The destination of your epic project! :D", required=True)
-    parser.add_argument('--force', help="Starts the project from scratch", action='store_true', default=False)
-    parser.add_argument('--yes', '-y', help="Forces all boolean options to true", action='store_true', default=None)
+    parser.add_argument('--yes', '-y', help='Forces all boolean options to true', action='store_true', default=None)
+    parser.add_argument('--dest', '-d', help='The destination of your epic project! :D', required=True)
+    parser.add_argument('--force', '-f', help='Starts the project from scratch', action='store_true', default=False)
 
     add_action_toggle(parser, setup_mila_user)
     add_action_toggle(parser, create_venv)
     add_action_toggle(parser, create_git_repo)
     add_action_toggle(parser, create_base_structure)
-    add_action_toggle(parser, partial(setup_wandb, project_name=""))
+    add_action_toggle(parser, partial(setup_wandb, project_name=''))
 
     parsed = vars(parser.parse_args(args=args))
 
@@ -25,7 +25,7 @@ def init(args=None):
     prompt_with_args = partial(prompt, parsed_args=parsed)
 
     with WorkingDirectory(path=base_dir, force=parsed['force']):
-        os.mkdir("src")
+        os.mkdir('src')
 
         prompt_with_args(setup_mila_user)
 
@@ -35,7 +35,10 @@ def init(args=None):
         prompt_with_args(partial(create_git_repo, base_dir=base_dir))
 
         if has_local_venv:
-            print(f"""\nRemember to source your new environment with: source {os.getcwd()}/venv/bin/activate\n""")
+            print(f'''
+Remember to source your new environment with:
+    source {os.getcwd()}/venv/bin/activate
+''')
 
 
 def sys_main():
@@ -44,7 +47,6 @@ def sys_main():
         return 0
     except Exception as e:
         import traceback
-        print(traceback.format_exc())
         print(e)
         return 1
 
