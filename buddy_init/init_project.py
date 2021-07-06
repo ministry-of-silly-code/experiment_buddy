@@ -34,6 +34,9 @@ def init(args=None):
         prompt_with_args(partial(create_base_structure, use_local_venv=has_local_venv), force=parsed['yes'])
         prompt_with_args(partial(create_git_repo, base_dir=base_dir))
 
+        if has_local_venv:
+            print(f"""\nRemember to source your new environment with: source {os.getcwd()}/venv/bin/activate\n""")
+
 
 def sys_main():
     try:

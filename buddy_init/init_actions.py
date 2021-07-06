@@ -29,8 +29,6 @@ def create_venv():
     """Create the experiment venv, otherwhise use the already active venv"""
     venv.EnvBuilder(with_pip=True).create('venv')
     subprocess.check_output(f'venv/bin/python3 -m pip install --upgrade pip', shell=True)
-    print(f"""\n\nRemember to source your new environment with:
-        source {os.getcwd()}/venv/bin/activate\n""")
 
 
 def create_git_repo(base_dir, remote_url):
