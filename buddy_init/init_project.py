@@ -29,10 +29,10 @@ def init(args=None):
 
         prompt_with_args(setup_mila_user)
 
-        prompt_with_args(create_git_repo, force=parsed['yes'])
         has_local_venv = prompt_with_args(create_venv, force=parsed['yes'])
         setup_wandb(project_name=base_dir, use_local_venv=has_local_venv)
         prompt_with_args(partial(create_base_structure, use_local_venv=has_local_venv), force=parsed['yes'])
+        prompt_with_args(partial(create_git_repo, base_dir=base_dir))
 
 
 def sys_main():
@@ -40,6 +40,8 @@ def sys_main():
         init()
         return 0
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         print(e)
         return 1
 

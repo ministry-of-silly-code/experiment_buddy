@@ -30,12 +30,22 @@ def create_venv():
     venv.EnvBuilder(with_pip=True).create('venv')
     subprocess.check_output(f'venv/bin/python3 -m pip install --upgrade pip', shell=True)
     print(f"""\n\nRemember to source your new environment with:
-        source {os.getcwd()}/venv/bin/activate\n\n""")
+        source {os.getcwd()}/venv/bin/activate\n""")
 
 
-def create_git_repo():
-    """Setups the git repo with the proper git ignores"""
-    Repo.init('./.git', bare=True)
+def create_git_repo(base_dir, remote_url):
+    """Setups the git repo with the proper git ignores, it requires a *NEW* the remote ssh address,
+    it looks like: git@github.com:username/example.git"""
+    subprocess.run(f'''(
+        cd {base_dir}
+        touch readme.md
+        git init
+        git add .
+        git commit -m "First commit"
+        git remote add origin {remote_url}
+        git branch -M master
+        git push -f -u origin master
+   )''', capture_output=True, shell=True).stdout.decode()
 
 
 def create_base_structure(use_local_venv=True):
