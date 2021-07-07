@@ -1,9 +1,8 @@
-import argparse
 import inspect
 import os
 from typing import Callable, Union, Dict, Any
 from shutil import which
-from functools import wraps
+from functools import wraps, partial
 from halo import Halo
 
 
@@ -91,7 +90,8 @@ def add_action_toggle(parser, fn: Union[Callable[[], None], Callable[[str], None
     params = get_fn_parameters(fn)
     docs = getattr(fn, 'func', fn).__doc__
     name = getattr(fn, 'func', fn).__name__
+    add_with = partial(parser.add_argument, f"--{name.replace('_', '-')}", dest=name, help=docs)
     if params:
-        parser.add_argument(f'--{name}', help=docs, default=None, metavar=params[0].upper())
+        add_with(default=None, metavar=params[0].upper())
     else:
-        parser.add_argument(f'--{name}', help=docs, action='store_true', default=None)
+        add_with(action='store_true', default=None)

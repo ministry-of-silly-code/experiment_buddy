@@ -42,13 +42,13 @@ pip install git+https://github.com/ministry-of-silly-code/buddy_cli.git@master\#
 ## Usage
 ### Interactive
 ```shell
-buddy-init --destination <your_awesome_project>
+buddy-init --dest <your_awesome_project>
 cd <your_awesome_project>
 ```
 
 ### With options
 ```shell
-buddy-init --destination sadafa -y --setup_mila_user <your_awesome_user>
+buddy-init --dest <your_awesome_project> -y --setup_mila_user <your_awesome_user>
 cd <your_awesome_project>
 ```
 
