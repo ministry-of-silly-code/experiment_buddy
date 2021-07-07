@@ -28,10 +28,10 @@ Example: (Updated)
 
 
 ## Installation
-### From repo
+### From repo (for buddy devs only)
 ```shell
 git clone git@github.com:ministry-of-silly-code/buddy_cli.git
-pip install -e ./buddy-cli
+pip install --user -e ./buddy-cli
 ```
 
 ### Directly from pip
