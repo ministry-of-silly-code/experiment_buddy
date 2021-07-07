@@ -15,8 +15,8 @@ def init(args=None):
     add_action_toggle(parser, setup_mila_user)
     add_action_toggle(parser, create_venv)
     add_action_toggle(parser, create_git_repo)
-    add_action_toggle(parser, create_base_structure)
-    add_action_toggle(parser, partial(setup_wandb, project_name=''))
+    add_action_toggle(parser, create_base_structure, force_bool=True)
+    add_action_toggle(parser, setup_wandb)
 
     parsed = vars(parser.parse_args(args=args))
 

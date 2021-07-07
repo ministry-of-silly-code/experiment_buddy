@@ -86,12 +86,15 @@ def prompt(action: Union[Callable[[], None], Callable[[str], None]],
     return apply
 
 
-def add_action_toggle(parser, fn: Union[Callable[[], None], Callable[[str], None]]):
+def add_action_toggle(parser: ArgumentParser,
+                      fn: Union[partial, Callable[[], None], Callable[[str], None]],
+                      force_bool: bool = False):
+    """Add a new argument to the parser. NOTE: the parameter bound to the argument is the FIRST ONE in the signature"""
     params = get_fn_parameters(fn)
     docs = getattr(fn, 'func', fn).__doc__
     name = getattr(fn, 'func', fn).__name__
     add_with = partial(parser.add_argument, f"--{name.replace('_', '-')}", dest=name, help=docs)
-    if params:
-        add_with(default=None, metavar=params[0].upper())
-    else:
+    if force_bool or not params:
         add_with(action='store_true', default=None)
+    else:
+        add_with(default=None, metavar=params[0].upper())
