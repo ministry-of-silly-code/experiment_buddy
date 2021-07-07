@@ -32,7 +32,7 @@ def create_venv():
     subprocess.check_output(f'venv/bin/python3 -m pip install --upgrade pip', shell=True)
 
 
-def create_git_repo(base_dir, remote_url):
+def create_git_repo(base_dir: str, remote_url: str):
     """Setups the git repo with the proper git ignores, it requires a *NEW* the remote ssh address,
     it looks like: git@github.com:username/example.git"""
     subprocess.run(f'''(

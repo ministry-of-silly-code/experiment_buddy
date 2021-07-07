@@ -1,5 +1,6 @@
 import inspect
 import os
+from argparse import ArgumentParser
 from typing import Callable, Union, Dict, Any
 from shutil import which
 from functools import wraps, partial
@@ -32,7 +33,7 @@ def coalesce(*args):
     return next((i for i in args if i is not None), None)
 
 
-def get_fn_parameters(action):
+def get_fn_parameters(action: Union[Callable, partial]):
     if hasattr(action, 'func'):
         return list(set(inspect.signature(action).parameters) - set(action.keywords.keys()))
     else:
@@ -41,7 +42,7 @@ def get_fn_parameters(action):
 
 class WorkingDirectory:
 
-    def __init__(self, *, path, force):
+    def __init__(self, *, path: str, force: bool):
         if force:
             os.system(f"rm -rf {path}")
         elif os.path.exists(path) and os.listdir(path):
@@ -61,9 +62,9 @@ class WorkingDirectory:
 
 def prompt(action: Union[Callable[[], None], Callable[[str], None]],
            parsed_args: Dict[str, Any],
-           force=None):
-    def unsnake(string):
-        return string.replace('_', ' ')
+           force: Union[str, bool] = None):
+    def unsnake(name: str):
+        return name.replace('_', ' ')
 
     action_name = getattr(action, 'func', action).__name__
     param_names = get_fn_parameters(action)
