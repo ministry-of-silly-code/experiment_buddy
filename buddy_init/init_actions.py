@@ -78,20 +78,18 @@ Match host *.mila.quebec,*.umontreal.ca
 
 def setup_mila_user(mila_user: str):
     """One time setup to connect with the Mila servers"""
-    mila_config = __create_mila_config(mila_user)
     config_path = os.path.expanduser('~/.ssh/config_mila')
     pathlib.Path(config_path).touch()
 
     current_config = pathlib.Path(config_path).read_text()
 
     if 'Host mila' not in current_config:
-        shutil.copy(config_path, f'{config_path}_BACKUP')
-        pathlib.Path(config_path).write_text(f'{current_config}\n{mila_config}')
+        user_config = __create_mila_config(mila_user)
+        pathlib.Path(config_path).write_text(user_config)
 
     try:
         fabric.Connection(host='mila', config=fabric.Config(user_ssh_path=config_path)).run("")
     except paramiko.ssh_exception.SSHException:
-        shutil.copy(f'{config_path}_BACKUP', config_path)
         raise FatalException(f"""
 Error while checking SSH connection, stopping
 Did you:
