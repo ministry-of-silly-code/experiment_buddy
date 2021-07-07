@@ -13,7 +13,8 @@ from .init_framework import FatalException
 
 
 def _is_venv():
-    return bool(os.environ.get('VIRTUAL_ENV'))
+    virtual_env = os.environ.get('VIRTUAL_ENV')
+    return bool(virtual_env)
 
 
 def _call_python(command: str, use_local_venv=True):
