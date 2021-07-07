@@ -53,10 +53,8 @@ def create_base_structure(use_local_venv=True):
     _call_python(command='pip install -r requirements.txt', use_local_venv=use_local_venv)
 
 
-def setup_mila_user(mila_user: str):
-    """One time setup to connect with the Mila servers"""
-    mila_config = f"""
-Host mila1
+def __create_mila_config(mila_user: str):
+    return f"""Host mila1
     Hostname login-1.login.server.mila.quebec
 Host mila2
     Hostname login-2.login.server.mila.quebec
@@ -74,8 +72,12 @@ Match host *.mila.quebec,*.umontreal.ca
     PreferredAuthentications publickey
     Port 2222
     ServerAliveInterval 120
-    ServerAliveCountMax 5
-"""
+    ServerAliveCountMax 5"""
+
+
+def setup_mila_user(mila_user: str):
+    """One time setup to connect with the Mila servers"""
+    mila_config = __create_mila_config(mila_user)
     config_path = os.path.expanduser('~/.ssh/config_mila')
     pathlib.Path(config_path).touch()
 
