@@ -42,10 +42,8 @@ def get_fn_parameters(action: Union[Callable, partial]):
 
 class WorkingDirectory:
 
-    def __init__(self, *, path: str, force: bool):
-        if force:
-            os.system(f"rm -rf {path}")
-        elif os.path.exists(path) and os.listdir(path):
+    def __init__(self, *, path: str):
+        if os.path.exists(path) and os.listdir(path):
             raise Exception("The directory exists and it's not empty")
 
         os.makedirs(path)
