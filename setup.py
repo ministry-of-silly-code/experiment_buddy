@@ -12,7 +12,6 @@ install_requires = [
     'tqdm',
     'aiohttp',
     'funcy',
-    'halo',
 ]
 
 setup(
