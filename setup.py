@@ -11,7 +11,7 @@ install_requires = [
     'paramiko',
     'tqdm',
     'aiohttp',
-    'funcy'
+    'funcy',
 ]
 
 setup(
@@ -26,4 +26,5 @@ setup(
     author_email='',
     description='',
     install_requires=install_requires,
+    entry_points={"console_scripts": ["buddy-init=buddy_init.init_project:sys_main"]}
 )
